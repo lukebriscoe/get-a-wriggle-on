@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Get a Wriggle On!</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f0f4ff;
+      --card-bg: #fff;
+      --card-done-bg: #d1fae5;
+      --card-border: #e2e8f0;
+      --text: #1e293b;
+      --text-muted: #94a3b8;
+      --red: #ef4444;
+      --shadow: 0 2px 14px rgba(0,0,0,0.09);
+      --radius: 18px;
+      --font: 'Nunito', system-ui, sans-serif;
+    }
+
+    /* Kid colour themes — swap just --k-color and --k-grad per swimlane */
+    .swimlane[data-kid="0"] {
+      --k-color: #6c63ff;
+      --k-mid:   #a78bfa;
+      --k-light: #ede9fe;
+      --k-grad:  linear-gradient(135deg, #6c63ff 0%, #a78bfa 100%);
+    }
+    .swimlane[data-kid="1"] {
+      --k-color: #f97316;
+      --k-mid:   #fb923c;
+      --k-light: #fff7ed;
+      --k-grad:  linear-gradient(135deg, #f97316 0%, #fbbf24 100%);
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      min-height: 100dvh;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+
+    /* ── App header ────────────────────────────────── */
+    .app-header {
+      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+      color: white;
+      padding: 18px 20px 14px;
+      text-align: center;
+    }
+    .app-header h1 { font-size: 1.7rem; font-weight: 900; letter-spacing: -0.5px; }
+    .app-header .date { font-size: 0.9rem; opacity: 0.7; margin-top: 2px; font-weight: 600; }
+
+    /* ── Swimlanes wrapper ─────────────────────────── */
+    .swimlanes {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      padding: 16px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    /* ── Swimlane ──────────────────────────────────── */
+    .swimlane {
+      background: white;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    /* Kid header bar */
+    .kid-header {
+      background: var(--k-grad);
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: relative;
+    }
+
+    .avatar-wrap { position: relative; flex-shrink: 0; }
+
+    .btn-avatar {
+      background: rgba(255,255,255,0.25);
+      border: 2.5px solid rgba(255,255,255,0.5);
+      border-radius: 50%;
+      width: 52px; height: 52px;
+      font-size: 1.6rem;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.15s, background 0.15s;
+      flex-shrink: 0;
+    }
+    .btn-avatar:active { transform: scale(0.9); }
+    .btn-avatar.open { background: rgba(255,255,255,0.45); }
+
+    /* Avatar picker dropdown */
+    .avatar-picker {
+      display: none;
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+      padding: 10px;
+      z-index: 200;
+      display: none;
+      flex-wrap: wrap;
+      gap: 6px;
+      width: 230px;
+    }
+    .avatar-picker.open { display: flex; }
+    .avatar-opt {
+      background: #f1f5f9;
+      border: 2.5px solid transparent;
+      border-radius: 10px;
+      font-size: 1.4rem;
+      width: 42px; height: 42px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color 0.12s, transform 0.1s, background 0.12s;
+    }
+    .avatar-opt:active { transform: scale(0.85); }
+    .avatar-opt.selected { border-color: var(--k-color, #6c63ff); background: var(--k-light, #ede9fe); }
+
+    /* Editable kid name */
+    .kid-name-wrap { flex: 1; min-width: 0; }
+
+    .kid-name-display {
+      font-size: 1.3rem;
+      font-weight: 900;
+      color: white;
+      cursor: text;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-bottom: 2px solid transparent;
+      transition: border-color 0.15s;
+      max-width: 100%;
+    }
+    .kid-name-display:hover { border-bottom-color: rgba(255,255,255,0.5); }
+    .edit-hint {
+      font-size: 0.75rem;
+      opacity: 0.65;
+      font-weight: 600;
+    }
+
+    .kid-name-input {
+      font-size: 1.3rem;
+      font-weight: 900;
+      font-family: var(--font);
+      color: var(--text);
+      background: white;
+      border: none;
+      border-radius: 8px;
+      padding: 2px 8px;
+      outline: none;
+      width: 160px;
+      max-width: 100%;
+      display: none;
+    }
+
+    /* Per-kid progress */
+    .kid-progress { margin-left: auto; text-align: right; flex-shrink: 0; }
+    .kid-progress-bar-wrap {
+      width: 100px;
+      background: rgba(255,255,255,0.25);
+      border-radius: 99px;
+      height: 8px;
+      overflow: hidden;
+      margin-bottom: 3px;
+    }
+    .kid-progress-bar-fill {
+      height: 100%;
+      background: white;
+      border-radius: 99px;
+      transition: width 0.5s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .kid-progress-label {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.85);
+      font-weight: 700;
+    }
+
+    /* ── Inner two-column board ─────────────────────── */
+    .inner-board {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+    }
+    @media (max-width: 480px) {
+      .inner-board { grid-template-columns: 1fr; }
+    }
+
+    .column {
+      display: flex;
+      flex-direction: column;
+      min-height: 200px;
+      border-right: 1px solid #f1f5f9;
+    }
+    .column:last-child { border-right: none; }
+    .column.done-col { background: #f0fdf4; }
+
+    .column-header {
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-bottom: 1px solid #f1f5f9;
+      color: var(--text-muted);
+    }
+    .todo-col .column-header { color: var(--k-color); }
+    .done-col .column-header { color: #22c55e; }
+
+    .col-count {
+      background: #f1f5f9;
+      border-radius: 99px;
+      padding: 1px 9px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      margin-left: auto;
+      color: var(--text-muted);
+    }
+    .todo-col .col-count { background: var(--k-light); color: var(--k-color); }
+    .done-col .col-count { background: #dcfce7; color: #16a34a; }
+
+    /* ── Task cards ─────────────────────────────────── */
+    .task-list {
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .task-card {
+      background: var(--card-bg);
+      border: 2px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px 12px 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .task-card:hover { transform: translateY(-2px); box-shadow: 0 5px 16px rgba(0,0,0,0.1); }
+    .task-card:active { transform: scale(0.97); }
+    .task-card.done { background: var(--card-done-bg); border-color: #86efac; opacity: 0.82; }
+    .task-card.done .task-label { text-decoration: line-through; color: var(--text-muted); }
+
+    .check-circle {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 2.5px solid #cbd5e1;
+      background: white;
+      flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.2s, border-color 0.2s;
+      font-size: 0.9rem;
+      color: white;
+    }
+    .task-card.done .check-circle { background: #22c55e; border-color: #22c55e; }
+
+    .task-emoji { font-size: 1.3rem; flex-shrink: 0; }
+    .task-label { font-size: 0.95rem; font-weight: 700; flex: 1; color: var(--text); }
+
+    .btn-delete {
+      background: none; border: none;
+      color: var(--text-muted);
+      font-size: 1rem; cursor: pointer;
+      padding: 4px 5px;
+      border-radius: 7px;
+      transition: color 0.15s, background 0.15s;
+      line-height: 1; flex-shrink: 0;
+    }
+    .btn-delete:hover { color: var(--red); background: #fee2e2; }
+
+    @keyframes popIn {
+      0%   { transform: scale(0.55); opacity: 0; }
+      70%  { transform: scale(1.07); }
+      100% { transform: scale(1);    opacity: 1; }
+    }
+    .task-card.pop { animation: popIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both; }
+
+    /* ── Add task form ───────────────────────────────── */
+    .add-task-wrap { padding: 0 10px 10px; }
+    .task-emoji-row {
+      display: flex; gap: 5px; flex-wrap: wrap;
+      margin-bottom: 7px;
+    }
+    .task-emoji-btn {
+      background: #f1f5f9; border: 2px solid transparent;
+      border-radius: 8px; font-size: 1.2rem;
+      width: 38px; height: 38px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color 0.12s, transform 0.1s;
+    }
+    .task-emoji-btn.selected { border-color: var(--k-color, #6c63ff); background: var(--k-light, #ede9fe); }
+    .task-emoji-btn:active { transform: scale(0.85); }
+
+    .add-task-row { display: flex; gap: 7px; }
+    .add-task-input {
+      flex: 1; border: 2px solid #e2e8f0; border-radius: 10px;
+      padding: 9px 11px; font-family: var(--font);
+      font-size: 0.9rem; font-weight: 600; color: var(--text);
+      outline: none; transition: border-color 0.15s; background: #f8fafc;
+    }
+    .add-task-input:focus { border-color: var(--k-color, #6c63ff); background: white; }
+
+    .btn-add {
+      background: var(--k-color, #6c63ff); color: white;
+      border: none; border-radius: 10px;
+      padding: 9px 15px; font-size: 1.25rem;
+      cursor: pointer; font-weight: 700;
+      transition: opacity 0.15s, transform 0.1s;
+      flex-shrink: 0;
+    }
+    .btn-add:active { transform: scale(0.9); }
+    .btn-add:hover { opacity: 0.88; }
+
+    /* ── Confetti ──────────────────────────────────── */
+    #confetti-canvas {
+      position: fixed; top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none; z-index: 1000;
+    }
+
+    /* ── All-done banner ───────────────────────────── */
+    .all-done-banner {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 900; align-items: center; justify-content: center;
+    }
+    .all-done-banner.show { display: flex; }
+    .all-done-card {
+      background: white; border-radius: 24px;
+      padding: 36px 44px; text-align: center;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.25);
+      animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    .all-done-card .banner-avatar { font-size: 3.5rem; margin-bottom: 8px; }
+    .all-done-card h2 { font-size: 2rem; font-weight: 900; color: #22c55e; margin-bottom: 6px; }
+    .all-done-card p { font-size: 1rem; color: var(--text-muted); font-weight: 600; margin-bottom: 22px; }
+    .btn-dismiss {
+      background: #6c63ff; color: white; border: none;
+      border-radius: 12px; padding: 13px 30px;
+      font-size: 1rem; font-weight: 800; cursor: pointer;
+      font-family: var(--font); transition: opacity 0.15s;
+    }
+    .btn-dismiss:hover { opacity: 0.88; }
+
+    /* ── Footer reset ──────────────────────────────── */
+    .reset-row { text-align: center; padding: 8px 16px 24px; }
+    .btn-reset {
+      background: none; border: 2px solid #e2e8f0;
+      color: var(--text-muted); border-radius: 99px;
+      padding: 7px 18px; font-size: 0.8rem; font-weight: 700;
+      font-family: var(--font); cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-reset:hover { border-color: #ef4444; color: #ef4444; }
+
+    /* Close avatar picker when clicking outside */
+    .picker-backdrop {
+      display: none; position: fixed; inset: 0; z-index: 100;
+    }
+    .picker-backdrop.open { display: block; }
+  </style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+<div class="picker-backdrop" id="pickerBackdrop" onclick="closeAllPickers()"></div>
+
+<!-- All-done overlay -->
+<div class="all-done-banner" id="allDoneBanner">
+  <div class="all-done-card">
+    <div class="banner-avatar" id="bannerAvatar">🎉</div>
+    <h2 id="bannerName">Mission Complete!</h2>
+    <p id="bannerMsg">You've finished everything — time to go be awesome!</p>
+    <button class="btn-dismiss" onclick="dismissBanner()">Woohoo! Let's go!</button>
+  </div>
+</div>
+
+<!-- App header -->
+<header class="app-header">
+  <h1>🌅 Get a Wriggle On!</h1>
+  <p class="date" id="dateLabel"></p>
+</header>
+
+<!-- Swimlanes rendered by JS -->
+<div class="swimlanes" id="swimlanes"></div>
+
+<div class="reset-row">
+  <button class="btn-reset" onclick="confirmReset()">Reset both boards for today</button>
+</div>
+
+<script>
+// ── Constants ─────────────────────────────────────────
+const STORAGE_KEY = 'get-a-wriggle-on-v1';
+
+const AVATAR_EMOJIS = [
+  '🦊','🦁','🐼','🐸','🦄','🐯','🐻','🐨','🐙','🦖',
+  '🐲','🦋','🌟','🌈','🎃','🧸','🦅','🐬','🦔','🐺',
+];
+
+const TASK_EMOJIS = ['🦷','💇','🎒','💧','🍌','👟','🧴','📚','🥣','🧹','🧦','👕','🐕','🌿','⭐'];
+
+const DEFAULT_TASKS = [
+  { label: 'Brush teeth',       emoji: '🦷' },
+  { label: 'Do hair',           emoji: '💇' },
+  { label: 'Get water bottle',  emoji: '💧' },
+  { label: 'Pack your bag',     emoji: '🎒' },
+  { label: 'Unload dishwasher', emoji: '🧹' },
+  { label: 'Get dressed',       emoji: '👕' },
+  { label: 'Have breakfast',    emoji: '🥣' },
+];
+
+// ── State ─────────────────────────────────────────────
+let state = {
+  date: todayStr(),
+  kids: [
+    { name: 'Kid 1', avatar: '🦊', tasks: [], selectedTaskEmoji: TASK_EMOJIS[0] },
+    { name: 'Kid 2', avatar: '🦁', tasks: [], selectedTaskEmoji: TASK_EMOJIS[0] },
+  ],
+};
+
+function todayStr() {
+  return new Date().toLocaleDateString('en-GB', { year: 'numeric', month: '2-digit', day: '2-digit' });
+}
+
+// ── Persistence ───────────────────────────────────────
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (saved.date !== todayStr()) {
+        saved.kids.forEach(k => k.tasks.forEach(t => t.done = false));
+        saved.date = todayStr();
+      }
+      // Merge to keep selectedTaskEmoji default if missing
+      state.date = saved.date;
+      saved.kids.forEach((sk, i) => {
+        if (state.kids[i]) {
+          state.kids[i] = { ...state.kids[i], ...sk };
+        }
+      });
+      return;
+    }
+  } catch {}
+  // First visit — seed default tasks for both kids
+  state.kids.forEach((kid, ki) => {
+    kid.tasks = DEFAULT_TASKS.map((t, i) => ({
+      id: Date.now() + ki * 1000 + i,
+      label: t.label,
+      emoji: t.emoji,
+      done: false,
+    }));
+  });
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({
+    date: state.date,
+    kids: state.kids,
+  }));
+}
+
+// ── Rendering ─────────────────────────────────────────
+function renderAll() {
+  const container = document.getElementById('swimlanes');
+  // Build all swimlanes from scratch or update in place
+  state.kids.forEach((kid, ki) => {
+    let lane = document.getElementById(`swimlane-${ki}`);
+    if (!lane) {
+      lane = buildSwimlane(ki);
+      container.appendChild(lane);
+    }
+    updateSwimlane(ki);
+  });
+}
+
+function buildSwimlane(ki) {
+  const lane = document.createElement('div');
+  lane.className = 'swimlane';
+  lane.dataset.kid = ki;
+  lane.id = `swimlane-${ki}`;
+
+  lane.innerHTML = `
+    <!-- Kid header -->
+    <div class="kid-header">
+      <div class="avatar-wrap" id="avatarWrap-${ki}">
+        <button class="btn-avatar" id="btnAvatar-${ki}" onclick="toggleAvatarPicker(${ki}, event)">
+          ${state.kids[ki].avatar}
+        </button>
+        <div class="avatar-picker" id="avatarPicker-${ki}"></div>
+      </div>
+      <div class="kid-name-wrap">
+        <span class="kid-name-display" id="kidNameDisplay-${ki}" onclick="startEditName(${ki})">
+          ${escHtml(state.kids[ki].name)}
+          <span class="edit-hint">✏️</span>
+        </span>
+        <input class="kid-name-input" id="kidNameInput-${ki}"
+               maxlength="20" autocomplete="off" autocorrect="off"
+               onblur="saveName(${ki})" onkeydown="nameKeydown(event,${ki})" />
+      </div>
+      <div class="kid-progress">
+        <div class="kid-progress-bar-wrap">
+          <div class="kid-progress-bar-fill" id="progressFill-${ki}" style="width:0%"></div>
+        </div>
+        <div class="kid-progress-label" id="progressLabel-${ki}">0 / 0 done</div>
+      </div>
+    </div>
+
+    <!-- Kanban columns -->
+    <div class="inner-board">
+      <div class="column todo-col">
+        <div class="column-header">
+          <span>⚡ To Do</span>
+          <span class="col-count" id="todoCount-${ki}">0</span>
+        </div>
+        <div class="task-list" id="todoList-${ki}"></div>
+        <div class="add-task-wrap">
+          <div class="task-emoji-row" id="taskEmojiRow-${ki}"></div>
+          <div class="add-task-row">
+            <input class="add-task-input" id="taskInput-${ki}"
+                   placeholder="Add a task…" maxlength="60"
+                   autocomplete="off" autocorrect="off" spellcheck="false"
+                   onkeydown="taskInputKey(event,${ki})" />
+            <button class="btn-add" onclick="addTask(${ki})">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="column done-col">
+        <div class="column-header">
+          <span>✅ Done</span>
+          <span class="col-count" id="doneCount-${ki}">0</span>
+        </div>
+        <div class="task-list" id="doneList-${ki}"></div>
+      </div>
+    </div>
+  `;
+
+  return lane;
+}
+
+function updateSwimlane(ki) {
+  const kid = state.kids[ki];
+  const todo = kid.tasks.filter(t => !t.done);
+  const done = kid.tasks.filter(t => t.done);
+  const total = kid.tasks.length;
+
+  // Counts
+  document.getElementById(`todoCount-${ki}`).textContent = todo.length;
+  document.getElementById(`doneCount-${ki}`).textContent = done.length;
+
+  // Progress
+  const pct = total ? Math.round((done.length / total) * 100) : 0;
+  document.getElementById(`progressFill-${ki}`).style.width = pct + '%';
+  document.getElementById(`progressLabel-${ki}`).textContent = `${done.length} / ${total} done`;
+
+  // Task lists
+  const todoList = document.getElementById(`todoList-${ki}`);
+  const doneList = document.getElementById(`doneList-${ki}`);
+  todoList.innerHTML = '';
+  doneList.innerHTML = '';
+  todo.forEach(t => todoList.appendChild(makeCard(t, ki)));
+  done.forEach(t => doneList.appendChild(makeCard(t, ki)));
+
+  // Emoji picker
+  renderTaskEmojiRow(ki);
+
+  // Avatar button
+  const btn = document.getElementById(`btnAvatar-${ki}`);
+  if (btn) btn.textContent = kid.avatar;
+
+  // Name display (only if not currently editing)
+  const display = document.getElementById(`kidNameDisplay-${ki}`);
+  const input = document.getElementById(`kidNameInput-${ki}`);
+  if (display && input && input.style.display !== 'block') {
+    display.innerHTML = `${escHtml(kid.name)} <span class="edit-hint">✏️</span>`;
+  }
+
+  // Rebuild avatar picker contents
+  renderAvatarPicker(ki);
+}
+
+function makeCard(task, ki) {
+  const div = document.createElement('div');
+  div.className = 'task-card' + (task.done ? ' done' : '');
+  div.dataset.id = task.id;
+  div.innerHTML = `
+    <div class="check-circle">${task.done ? '✓' : ''}</div>
+    <span class="task-emoji">${task.emoji || '⭐'}</span>
+    <span class="task-label">${escHtml(task.label)}</span>
+    <button class="btn-delete" onclick="deleteTask(${ki},${task.id},event)">✕</button>
+  `;
+  div.addEventListener('click', () => toggleTask(ki, task.id));
+  return div;
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+// ── Task actions ──────────────────────────────────────
+function toggleTask(ki, id) {
+  const kid = state.kids[ki];
+  const task = kid.tasks.find(t => t.id === id);
+  if (!task) return;
+  task.done = !task.done;
+  save();
+  updateSwimlane(ki);
+
+  if (task.done) {
+    launchConfetti(ki);
+    if (kid.tasks.length > 0 && kid.tasks.every(t => t.done)) {
+      setTimeout(() => showAllDone(ki), 650);
+    }
+  }
+}
+
+function deleteTask(ki, id, e) {
+  e.stopPropagation();
+  state.kids[ki].tasks = state.kids[ki].tasks.filter(t => t.id !== id);
+  save();
+  updateSwimlane(ki);
+}
+
+function addTask(ki) {
+  const input = document.getElementById(`taskInput-${ki}`);
+  const label = input.value.trim();
+  if (!label) { input.focus(); return; }
+  const task = {
+    id: Date.now(),
+    label,
+    emoji: state.kids[ki].selectedTaskEmoji,
+    done: false,
+  };
+  state.kids[ki].tasks.push(task);
+  save();
+  updateSwimlane(ki);
+  input.value = '';
+  input.focus();
+  requestAnimationFrame(() => {
+    const card = document.querySelector(`#swimlane-${ki} .task-card[data-id="${task.id}"]`);
+    if (card) card.classList.add('pop');
+  });
+}
+
+function taskInputKey(e, ki) {
+  if (e.key === 'Enter') addTask(ki);
+}
+
+// ── Name editing ──────────────────────────────────────
+function startEditName(ki) {
+  const display = document.getElementById(`kidNameDisplay-${ki}`);
+  const input   = document.getElementById(`kidNameInput-${ki}`);
+  display.style.display = 'none';
+  input.value = state.kids[ki].name;
+  input.style.display = 'block';
+  input.focus();
+  input.select();
+}
+
+function saveName(ki) {
+  const display = document.getElementById(`kidNameDisplay-${ki}`);
+  const input   = document.getElementById(`kidNameInput-${ki}`);
+  const val = input.value.trim() || state.kids[ki].name;
+  state.kids[ki].name = val;
+  save();
+  display.innerHTML = `${escHtml(val)} <span class="edit-hint">✏️</span>`;
+  input.style.display = 'none';
+  display.style.display = '';
+}
+
+function nameKeydown(e, ki) {
+  if (e.key === 'Enter') { e.preventDefault(); saveName(ki); }
+  if (e.key === 'Escape') {
+    const display = document.getElementById(`kidNameDisplay-${ki}`);
+    const input   = document.getElementById(`kidNameInput-${ki}`);
+    input.style.display = 'none';
+    display.style.display = '';
+  }
+}
+
+// ── Avatar picker ─────────────────────────────────────
+function renderAvatarPicker(ki) {
+  const picker = document.getElementById(`avatarPicker-${ki}`);
+  if (!picker) return;
+  picker.innerHTML = '';
+  AVATAR_EMOJIS.forEach(em => {
+    const btn = document.createElement('button');
+    btn.className = 'avatar-opt' + (em === state.kids[ki].avatar ? ' selected' : '');
+    btn.textContent = em;
+    btn.onclick = (e) => { e.stopPropagation(); pickAvatar(ki, em); };
+    picker.appendChild(btn);
+  });
+}
+
+function toggleAvatarPicker(ki, e) {
+  e.stopPropagation();
+  const picker = document.getElementById(`avatarPicker-${ki}`);
+  const btn    = document.getElementById(`btnAvatar-${ki}`);
+  const backdrop = document.getElementById('pickerBackdrop');
+  const isOpen = picker.classList.contains('open');
+
+  closeAllPickers();
+  if (!isOpen) {
+    picker.classList.add('open');
+    btn.classList.add('open');
+    backdrop.classList.add('open');
+  }
+}
+
+function pickAvatar(ki, em) {
+  state.kids[ki].avatar = em;
+  save();
+  closeAllPickers();
+  updateSwimlane(ki);
+}
+
+function closeAllPickers() {
+  document.querySelectorAll('.avatar-picker').forEach(p => p.classList.remove('open'));
+  document.querySelectorAll('.btn-avatar').forEach(b => b.classList.remove('open'));
+  document.getElementById('pickerBackdrop').classList.remove('open');
+}
+
+// ── Task emoji row ────────────────────────────────────
+function renderTaskEmojiRow(ki) {
+  const row = document.getElementById(`taskEmojiRow-${ki}`);
+  if (!row) return;
+  row.innerHTML = '';
+  TASK_EMOJIS.forEach(em => {
+    const btn = document.createElement('button');
+    btn.className = 'task-emoji-btn' + (em === state.kids[ki].selectedTaskEmoji ? ' selected' : '');
+    btn.textContent = em;
+    btn.onclick = () => {
+      state.kids[ki].selectedTaskEmoji = em;
+      renderTaskEmojiRow(ki);
+    };
+    row.appendChild(btn);
+  });
+}
+
+// ── Reset ─────────────────────────────────────────────
+function confirmReset() {
+  if (confirm('Reset all tasks for both kids?')) {
+    state.kids.forEach(k => k.tasks.forEach(t => t.done = false));
+    save();
+    renderAll();
+  }
+}
+
+// ── All-done banner ───────────────────────────────────
+function showAllDone(ki) {
+  const kid = state.kids[ki];
+  document.getElementById('bannerAvatar').textContent = kid.avatar;
+  document.getElementById('bannerName').textContent   = `${kid.name} — Mission Complete!`;
+  document.getElementById('bannerMsg').textContent    = `Every task done — go be awesome today!`;
+  document.getElementById('allDoneBanner').classList.add('show');
+  bigConfetti(ki);
+}
+
+function dismissBanner() {
+  document.getElementById('allDoneBanner').classList.remove('show');
+}
+
+// ── Date header ───────────────────────────────────────
+function renderDate() {
+  const days   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const d = new Date();
+  document.getElementById('dateLabel').textContent =
+    `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// ── Confetti ──────────────────────────────────────────
+const canvas = document.getElementById('confetti-canvas');
+const ctx    = canvas.getContext('2d');
+let particles = [];
+let rafId = null;
+
+function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+// Per-kid colour palettes
+const KID_COLORS = [
+  ['#6c63ff','#a78bfa','#f59e0b','#22c55e','#06b6d4'],
+  ['#f97316','#fbbf24','#ef4444','#22c55e','#ec4899'],
+];
+
+function spawnParticles(count, x, y, spread, ki) {
+  const colors = KID_COLORS[ki] || KID_COLORS[0];
+  for (let i = 0; i < count; i++) {
+    const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * spread;
+    const speed = 4 + Math.random() * 9;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      w: 8 + Math.random() * 10, h: 4 + Math.random() * 5,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rot: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.22,
+      alpha: 1,
+      gravity: 0.24 + Math.random() * 0.14,
+    });
+  }
+}
+
+function launchConfetti(ki) {
+  const xPos = ki === 0 ? canvas.width * 0.3 : canvas.width * 0.7;
+  spawnParticles(45, xPos, canvas.height * 0.45, 1.8, ki);
+  if (!rafId) tickConfetti();
+}
+
+function bigConfetti(ki) {
+  const xL = ki === 0 ? canvas.width * 0.15 : canvas.width * 0.5;
+  const xR = ki === 0 ? canvas.width * 0.5  : canvas.width * 0.85;
+  spawnParticles(120, xL, canvas.height * 0.3, 2, ki);
+  spawnParticles(120, xR, canvas.height * 0.3, 2, ki);
+  if (!rafId) tickConfetti();
+}
+
+function tickConfetti() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles = particles.filter(p => p.alpha > 0.02);
+  particles.forEach(p => {
+    p.x += p.vx; p.y += p.vy;
+    p.vy += p.gravity; p.vx *= 0.99;
+    p.rot += p.rotSpeed;
+    if (p.y > canvas.height * 0.65) p.alpha -= 0.022;
+    ctx.save();
+    ctx.globalAlpha = p.alpha;
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+    ctx.restore();
+  });
+  if (particles.length > 0) {
+    rafId = requestAnimationFrame(tickConfetti);
+  } else {
+    rafId = null;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
+// ── Init ──────────────────────────────────────────────
+load();
+renderDate();
+renderAll();
+
+// Midnight auto-reset
+setInterval(() => {
+  const today = todayStr();
+  if (state.date !== today) {
+    state.kids.forEach(k => k.tasks.forEach(t => t.done = false));
+    state.date = today;
+    save();
+    renderAll();
+    renderDate();
+  }
+}, 60_000);
+</script>
+</body>
+</html>
