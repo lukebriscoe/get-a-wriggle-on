@@ -250,7 +250,15 @@
       background: rgba(245,158,11,0.18);
       border-color: rgba(245,158,11,0.55);
       box-shadow: 0 0 12px rgba(245,158,11,0.2);
+      cursor: pointer;
     }
+    .day-dot.earned:hover {
+      background: rgba(251,113,133,0.2);
+      border-color: rgba(251,113,133,0.6);
+      box-shadow: 0 0 12px rgba(251,113,133,0.2);
+    }
+    .day-dot.earned:hover .day-coin::after { content: '✕'; font-size: 0.9rem; }
+    .day-dot.earned:hover .day-coin { font-size: 0; }
     .day-dot.earned .day-letter { color: rgba(245,158,11,0.7); }
     .day-dot.is-today { border-color: rgba(255,255,255,0.3); }
     .day-dot.is-today .day-letter { color: var(--text); }
@@ -606,6 +614,14 @@ function checkWeeklyReset() {
     state.weekEarnings = defaultWeekEarnings();
   }
 }
+function deductEarning(dateStr) {
+  if (!confirm(`Take £1 away from ${state.name}?`)) return;
+  state.weekEarnings.days = state.weekEarnings.days.filter(d => d !== dateStr);
+  state.weekEarnings.total = Math.max(0, state.weekEarnings.total - 1);
+  save();
+  renderEarningsStrip();
+}
+
 function awardEarning() {
   if (!isWeekday()) return false;
   checkWeeklyReset();
@@ -702,6 +718,7 @@ function renderEarningsStrip() {
     dot.innerHTML = earned
       ? `<span class="day-coin">💷</span><span class="day-letter">${WEEKDAY_LABELS[i]}</span>`
       : `<span class="day-letter">${WEEKDAY_LABELS[i]}</span>`;
+    if (earned) dot.addEventListener('click', () => deductEarning(dateStr));
     container.appendChild(dot);
   });
 
